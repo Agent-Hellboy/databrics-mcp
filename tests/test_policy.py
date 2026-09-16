@@ -57,11 +57,17 @@ def test_policy_requires_exact_group_and_warehouse() -> None:
     allowed_user = SimpleNamespace(
         groups=[SimpleNamespace(display="mcp_users", value="group-id")]
     )
-    denied_user = SimpleNamespace(groups=[SimpleNamespace(display="other", value="other-id")])
+    denied_user = SimpleNamespace(
+        groups=[SimpleNamespace(display="other", value="other-id")]
+    )
 
-    policy.require_user(SimpleNamespace(current_user=SimpleNamespace(me=lambda: allowed_user)))
+    policy.require_user(
+        SimpleNamespace(current_user=SimpleNamespace(me=lambda: allowed_user))
+    )
     with pytest.raises(PermissionError, match="required group"):
-        policy.require_user(SimpleNamespace(current_user=SimpleNamespace(me=lambda: denied_user)))
+        policy.require_user(
+            SimpleNamespace(current_user=SimpleNamespace(me=lambda: denied_user))
+        )
     assert policy.require_warehouse("warehouse-1") == "warehouse-1"
     assert not policy.allows_warehouse("warehouse-2")
     with pytest.raises(PermissionError, match="not approved"):

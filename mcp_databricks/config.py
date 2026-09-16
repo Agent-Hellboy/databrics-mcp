@@ -12,7 +12,9 @@ from sqlglot.errors import ParseError
 
 from mcp_databricks.auth import workspace_host
 
-READ_ONLY_START = re.compile(r"^\s*(select|with|show|describe|explain)\b", re.IGNORECASE)
+READ_ONLY_START = re.compile(
+    r"^\s*(select|with|show|describe|explain)\b", re.IGNORECASE
+)
 MUTATING_EXPRESSIONS = (
     exp.DML,
     exp.DDL,
@@ -29,7 +31,9 @@ TABLE_IDENTIFIER = re.compile(
 )
 
 # Per-request Databricks user access token (set by middleware / tool entry).
-REQUEST_ACCESS_TOKEN: ContextVar[str | None] = ContextVar("request_access_token", default=None)
+REQUEST_ACCESS_TOKEN: ContextVar[str | None] = ContextVar(
+    "request_access_token", default=None
+)
 REQUEST_USER_ID: ContextVar[str | None] = ContextVar("request_user_id", default=None)
 
 # ASGI scope key carrying the authenticated identity. UsageMetricsMiddleware wraps
@@ -45,7 +49,9 @@ class RequestCredentials:
     user_id: str
 
 
-def credentials_from_access_token(token: str, user_id: str | None = None) -> RequestCredentials:
+def credentials_from_access_token(
+    token: str, user_id: str | None = None
+) -> RequestCredentials:
     cleaned = (token or "").strip()
     if not cleaned:
         raise ValueError("Databricks OAuth access token is required.")
@@ -111,5 +117,7 @@ def validate_table_identifier(full_name: str) -> str:
     """Allow a simple three-part Unity Catalog identifier in generated SQL."""
     normalized = full_name.strip()
     if not TABLE_IDENTIFIER.fullmatch(normalized):
-        raise ValueError("Table name must be a three-part identifier: catalog.schema.table.")
+        raise ValueError(
+            "Table name must be a three-part identifier: catalog.schema.table."
+        )
     return normalized

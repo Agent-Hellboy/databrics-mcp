@@ -24,7 +24,11 @@ class UsageMetricsMiddleware:
         self.path = path
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http" or scope.get("method") != "POST" or scope.get("path") != self.path:
+        if (
+            scope["type"] != "http"
+            or scope.get("method") != "POST"
+            or scope.get("path") != self.path
+        ):
             await self.app(scope, receive, send)
             return
         body: list[bytes] = []
@@ -46,11 +50,20 @@ class UsageMetricsMiddleware:
         try:
             await self.app(scope, wrapped_receive, wrapped_send)
         finally:
-            self._record(scope, b"".join(body), status, int((time.monotonic() - started) * 1000))
+            self._record(
+                scope, b"".join(body), status, int((time.monotonic() - started) * 1000)
+            )
 
     @staticmethod
-    def _record(scope: Scope, body: bytes, status: int | None, duration_ms: int) -> None:
-        if os.environ.get("MCP_METRICS_ENABLED", "true").lower() in {"0", "false", "no", "off"}:
+    def _record(
+        scope: Scope, body: bytes, status: int | None, duration_ms: int
+    ) -> None:
+        if os.environ.get("MCP_METRICS_ENABLED", "true").lower() in {
+            "0",
+            "false",
+            "no",
+            "off",
+        }:
             return
         try:
             payload: Any = json.loads(body.decode("utf-8")) if body else {}
@@ -58,7 +71,11 @@ class UsageMetricsMiddleware:
                 payload = payload[0] if payload else {}
             params = payload.get("params", {}) if isinstance(payload, dict) else {}
             rpc_method = payload.get("method") if isinstance(payload, dict) else None
-            tool_name = params.get("name") if rpc_method == "tools/call" and isinstance(params, dict) else None
+            tool_name = (
+                params.get("name")
+                if rpc_method == "tools/call" and isinstance(params, dict)
+                else None
+            )
             headers = dict(scope.get("headers", []))
             client = scope.get("client") or ("unknown",)
             user_id = "unknown"
@@ -96,11 +113,21 @@ class UsageMetricsMiddleware:
                     """INSERT INTO mcp_call_metrics
                     (server,user_id,tool_name,rpc_method,http_method,path,status_code,duration_ms,session_id,client_host,user_agent,error,created_at)
                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                    (SERVER_NAME, user_id, tool_name,
-                     rpc_method, "POST", "/mcp", status, duration_ms,
-                     headers.get(b"mcp-session-id", b"").decode("latin-1") or None, str(client[0]),
-                     headers.get(b"user-agent", b"").decode("latin-1") or None, None,
-                     datetime.now(timezone.utc).isoformat()),
+                    (
+                        SERVER_NAME,
+                        user_id,
+                        tool_name,
+                        rpc_method,
+                        "POST",
+                        "/mcp",
+                        status,
+                        duration_ms,
+                        headers.get(b"mcp-session-id", b"").decode("latin-1") or None,
+                        str(client[0]),
+                        headers.get(b"user-agent", b"").decode("latin-1") or None,
+                        None,
+                        datetime.now(timezone.utc).isoformat(),
+                    ),
                 )
         except Exception:
             return

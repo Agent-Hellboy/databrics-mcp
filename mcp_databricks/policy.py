@@ -31,7 +31,9 @@ class ReadOnlyPolicy:
             if item.strip()
         )
         if not warehouse_ids:
-            raise ValueError("DATABRICKS_ALLOWED_WAREHOUSE_IDS must contain at least one id")
+            raise ValueError(
+                "DATABRICKS_ALLOWED_WAREHOUSE_IDS must contain at least one id"
+            )
         if "*" in warehouse_ids:
             raise ValueError("DATABRICKS_ALLOWED_WAREHOUSE_IDS must not use a wildcard")
         return cls(required_group=group, allowed_warehouse_ids=warehouse_ids)
@@ -41,7 +43,10 @@ class ReadOnlyPolicy:
         group_names = {
             value
             for group in (getattr(user, "groups", None) or [])
-            for value in (getattr(group, "display", None), getattr(group, "value", None))
+            for value in (
+                getattr(group, "display", None),
+                getattr(group, "value", None),
+            )
             if value
         }
         if self.required_group not in group_names:
@@ -55,7 +60,9 @@ class ReadOnlyPolicy:
     def require_warehouse(self, warehouse_id: str) -> str:
         normalized = (warehouse_id or "").strip()
         if normalized not in self.allowed_warehouse_ids:
-            raise PermissionError("SQL warehouse is not approved for MCP read-only access")
+            raise PermissionError(
+                "SQL warehouse is not approved for MCP read-only access"
+            )
         return normalized
 
 

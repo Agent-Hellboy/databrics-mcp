@@ -25,11 +25,15 @@ def client():
 
     from mcp_databricks.app import create_app
 
-    return AsyncClient(transport=ASGITransport(app=create_app()), base_url="http://test")
+    return AsyncClient(
+        transport=ASGITransport(app=create_app()), base_url="http://test"
+    )
 
 
 @pytest.mark.anyio
-async def test_protected_resource_metadata_is_served_at_the_service_scoped_path(client) -> None:
+async def test_protected_resource_metadata_is_served_at_the_service_scoped_path(
+    client,
+) -> None:
     async with client as c:
         response = await c.get(PRM_PATH)
     assert response.status_code == 200
@@ -60,11 +64,15 @@ async def test_unauthorized_mcp_points_at_the_served_prm_path(client) -> None:
         )
     assert response.status_code in {401, 403}
     challenge = response.headers.get("www-authenticate", "")
-    assert f'resource_metadata="{BASE_URL.split("/databricks")[0]}{PRM_PATH}"' in challenge
+    assert (
+        f'resource_metadata="{BASE_URL.split("/databricks")[0]}{PRM_PATH}"' in challenge
+    )
 
 
 @pytest.mark.anyio
-async def test_authorization_server_metadata_is_not_served_by_the_resource_server(client) -> None:
+async def test_authorization_server_metadata_is_not_served_by_the_resource_server(
+    client,
+) -> None:
     """Authorization-server metadata lives on the auth service, not here."""
     async with client as c:
         response = await c.get("/.well-known/oauth-authorization-server")

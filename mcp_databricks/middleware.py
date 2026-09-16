@@ -41,7 +41,7 @@ async def _send_unauthorized(send: Send, detail: str) -> None:
             "status": 401,
             "headers": [
                 (b"content-type", b"application/json"),
-                (b"www-authenticate", b"Bearer error=\"invalid_token\""),
+                (b"www-authenticate", b'Bearer error="invalid_token"'),
             ],
         }
     )
@@ -56,6 +56,7 @@ class AuthContextMiddleware:
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "lifespan":
+
             async def receive_with_shutdown():
                 message = await receive()
                 if message["type"] == "lifespan.shutdown":

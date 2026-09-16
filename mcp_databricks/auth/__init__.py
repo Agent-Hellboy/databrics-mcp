@@ -23,18 +23,19 @@ DEFAULT_EXCHANGE_CLIENT = "databricks-mcp"
 def workspace_host() -> str:
     host = os.environ.get("DATABRICKS_HOST", "").strip().rstrip("/")
     parsed = urlparse(host)
-    if parsed.scheme != "https" or not parsed.hostname or not parsed.hostname.endswith(
-        ".cloud.databricks.com"
+    if (
+        parsed.scheme != "https"
+        or not parsed.hostname
+        or not parsed.hostname.endswith(".cloud.databricks.com")
     ):
-        raise ValueError("DATABRICKS_HOST must be an approved HTTPS Databricks workspace host.")
+        raise ValueError(
+            "DATABRICKS_HOST must be an approved HTTPS Databricks workspace host."
+        )
     return host
 
 
 def auth_issuer() -> str:
-    return (
-        os.getenv("MCP_AUTH_ISSUER", "").strip()
-        or DEFAULT_ISSUER
-    ).rstrip("/")
+    return (os.getenv("MCP_AUTH_ISSUER", "").strip() or DEFAULT_ISSUER).rstrip("/")
 
 
 def auth_jwks_uri() -> str:
@@ -45,14 +46,13 @@ def auth_jwks_uri() -> str:
 
 
 def auth_token_endpoint() -> str:
-    return (
-        os.getenv("MCP_AUTH_TOKEN_ENDPOINT", "").strip()
-        or f"{auth_issuer()}/token"
-    )
+    return os.getenv("MCP_AUTH_TOKEN_ENDPOINT", "").strip() or f"{auth_issuer()}/token"
 
 
 def auth_connector() -> str:
-    return os.getenv("MCP_AUTH_CONNECTOR", DEFAULT_CONNECTOR).strip() or DEFAULT_CONNECTOR
+    return (
+        os.getenv("MCP_AUTH_CONNECTOR", DEFAULT_CONNECTOR).strip() or DEFAULT_CONNECTOR
+    )
 
 
 def auth_exchange_client_id() -> str:

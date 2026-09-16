@@ -76,7 +76,9 @@ async def test_identity_survives_the_contextvar_reset(tmp_path, monkeypatch) -> 
 
 
 @pytest.mark.anyio
-async def test_header_fallback_still_attributes_during_rollout(tmp_path, monkeypatch) -> None:
+async def test_header_fallback_still_attributes_during_rollout(
+    tmp_path, monkeypatch
+) -> None:
     db = tmp_path / "databricks-mcp-metrics.sqlite3"
     monkeypatch.setenv("MCP_METRICS_DB_PATH", str(db))
     # conftest disables metrics for the rest of the suite; _record returns early

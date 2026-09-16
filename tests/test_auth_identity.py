@@ -64,7 +64,9 @@ def anyio_backend():
     return "asyncio"
 
 
-async def _user_id_for(access: _AccessToken, monkeypatch: pytest.MonkeyPatch) -> str | None:
+async def _user_id_for(
+    access: _AccessToken, monkeypatch: pytest.MonkeyPatch
+) -> str | None:
     monkeypatch.setattr("mcp_databricks.middleware._EXCHANGE", _OkExchange())
     seen: dict[str, str | None] = {}
 
@@ -74,8 +76,12 @@ async def _user_id_for(access: _AccessToken, monkeypatch: pytest.MonkeyPatch) ->
 
     inner = Starlette(routes=[Route("/mcp", ok, methods=["POST"])])
     app = _InjectUser(AuthContextMiddleware(inner), _User(access))
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post("/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "ping"})
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.post(
+            "/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "ping"}
+        )
     assert response.status_code == 200
     return seen.get("user_id")
 
@@ -88,14 +94,18 @@ async def test_sub_claim_names_the_user(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 @pytest.mark.anyio
-async def test_email_claim_is_used_when_sub_is_absent(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_email_claim_is_used_when_sub_is_absent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """A connector that returns OIDC profile claims instead of `sub` still attributes."""
     access = _AccessToken(claims={"email": USER})
     assert await _user_id_for(access, monkeypatch) == USER
 
 
 @pytest.mark.anyio
-async def test_verifier_supplied_subject_is_preferred(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_verifier_supplied_subject_is_preferred(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """If a future verifier does populate `subject`, it stays authoritative."""
     access = _AccessToken(claims={"email": "someone-else@example.com"}, subject=USER)
     assert await _user_id_for(access, monkeypatch) == USER

@@ -56,4 +56,10 @@ def register(mcp: FastMCP) -> None:
         mcp.tool(auth=require_scopes("sql:read"))(tool)
 
 
-__all__ = ["MAX_ROWS", "MAX_SAMPLE_ROWS", "register", "run_readonly_sql", "sample_table"]
+__all__ = [
+    "MAX_ROWS",
+    "MAX_SAMPLE_ROWS",
+    "register",
+    "run_readonly_sql",
+    "sample_table",
+]

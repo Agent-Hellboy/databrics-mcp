@@ -36,7 +36,9 @@ def list_schemas(catalog_name: str, max_results: int = 100) -> list[dict]:
     ]
 
 
-def list_tables(catalog_name: str, schema_name: str, max_results: int = 100) -> list[dict]:
+def list_tables(
+    catalog_name: str, schema_name: str, max_results: int = 100
+) -> list[dict]:
     """List tables visible in one Unity Catalog schema."""
     client, _ = workspace_client()
     return [
@@ -101,7 +103,13 @@ def search_tables(query: str, max_results: int = 20) -> list[dict]:
 
 
 def register(mcp: FastMCP) -> None:
-    for tool in (list_catalogs, list_schemas, list_tables, describe_table, search_tables):
+    for tool in (
+        list_catalogs,
+        list_schemas,
+        list_tables,
+        describe_table,
+        search_tables,
+    ):
         mcp.tool(auth=require_scopes("catalog:read"))(tool)
 
 

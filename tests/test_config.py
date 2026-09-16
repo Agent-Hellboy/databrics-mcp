@@ -11,15 +11,15 @@ from mcp_databricks.config import (
     validate_readonly_sql,
     validate_table_identifier,
 )
+
+
 def test_credentials_require_token() -> None:
     with pytest.raises(ValueError, match="access token"):
         credentials_from_access_token("")
 
 
 def test_credentials_from_access_token(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv(
-        "DATABRICKS_HOST", "https://workspace.cloud.databricks.com"
-    )
+    monkeypatch.setenv("DATABRICKS_HOST", "https://workspace.cloud.databricks.com")
     creds = credentials_from_access_token("tok-abc", "user@example.com")
     assert creds.token == "tok-abc"
     assert creds.user_id == "user@example.com"
@@ -68,10 +68,14 @@ def test_table_identifier() -> None:
 def test_build_auth_provider_is_a_resource_server() -> None:
     provider = build_auth_provider()
     assert isinstance(provider, RemoteAuthProvider)
-    assert str(provider.authorization_servers[0]).rstrip("/") == "https://auth.example.com"
+    assert (
+        str(provider.authorization_servers[0]).rstrip("/") == "https://auth.example.com"
+    )
 
 
-def test_workspace_client_uses_exchanged_token_not_mcp_jwt(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_workspace_client_uses_exchanged_token_not_mcp_jwt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     from mcp_databricks.config import REQUEST_ACCESS_TOKEN, REQUEST_USER_ID
     from mcp_databricks import client as client_mod
 

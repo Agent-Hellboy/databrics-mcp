@@ -52,7 +52,11 @@ async def test_exchange_failure_is_401(monkeypatch: pytest.MonkeyPatch) -> None:
     inner = Starlette(routes=[Route("/mcp", ok, methods=["POST"])])
     app = _InjectUser(AuthContextMiddleware(inner), _User("mcp-jwt"))
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        denied = await client.post("/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "ping"})
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        denied = await client.post(
+            "/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "ping"}
+        )
     assert denied.status_code == 401
     assert denied.json()["error"] == "invalid_token"
