@@ -114,6 +114,23 @@ async def test_unauthorized_mcp_points_at_the_served_prm_path(client) -> None:
 
 
 @pytest.mark.anyio
+async def test_unauthorized_mcp_carries_a_json_body(client) -> None:
+    """The challenge header satisfies a compliant client, but an empty body
+    leaves a human debugging with nothing and hides which of the two 401
+    causes fired. The header must survive being filled in."""
+    async with client as c:
+        response = await c.post(
+            "/mcp",
+            json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+            headers={"Accept": "application/json, text/event-stream"},
+        )
+    assert response.status_code == 401
+    assert response.headers["content-type"].startswith("application/json")
+    assert response.json()["error"] == "invalid_token"
+    assert "resource_metadata=" in response.headers.get("www-authenticate", "")
+
+
+@pytest.mark.anyio
 async def test_authorization_server_metadata_is_not_served_by_the_resource_server(
     client,
 ) -> None:

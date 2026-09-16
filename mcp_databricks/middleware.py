@@ -6,7 +6,7 @@ import json
 import logging
 
 from fastmcp.server.dependencies import get_access_token
-from starlette.types import ASGIApp, Receive, Scope, Send
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from mcp_databricks.auth import TokenExchangeError, build_token_exchange_client
 from mcp_databricks.config import REQUEST_ACCESS_TOKEN, REQUEST_USER_ID, SCOPE_USER_ID
@@ -45,6 +45,60 @@ async def _send_unauthorized(send: Send, detail: str) -> None:
         }
     )
     await send({"type": "http.response.body", "body": body})
+
+
+def _with_unauthorized_body(send: Send) -> Send:
+    """Give an otherwise-empty 401 the same JSON body _send_unauthorized uses.
+
+    FastMCP's own verifier answers a missing or invalid bearer token with a
+    401 carrying the right WWW-Authenticate challenge and content-length: 0.
+    The header alone satisfies a compliant client, but it leaves a human
+    debugging with nothing, and some clients surface the body rather than the
+    header — so a rejected token and a failed downstream exchange looked
+    identical from outside the process. The challenge header is passed
+    through untouched; only the body and its content-type/length are filled
+    in, and only when the response really is empty.
+    """
+    state: dict = {"start": None, "done": False}
+
+    async def wrapped(message: Message) -> None:
+        if state["done"]:
+            await send(message)
+            return
+        if message["type"] == "http.response.start":
+            if message["status"] == 401:
+                state["start"] = message
+                return
+            state["done"] = True
+            await send(message)
+            return
+        if message["type"] == "http.response.body" and state["start"] is not None:
+            start, state["start"], state["done"] = state["start"], None, True
+            if message.get("body") or message.get("more_body"):
+                await send(start)
+                await send(message)
+                return
+            body = json.dumps(
+                {
+                    "error": "invalid_token",
+                    "error_description": "a valid bearer token is required",
+                }
+            ).encode()
+            headers = [
+                (name, value)
+                for name, value in start.get("headers", [])
+                if name.lower() not in {b"content-length", b"content-type"}
+            ]
+            headers += [
+                (b"content-type", b"application/json"),
+                (b"content-length", str(len(body)).encode()),
+            ]
+            await send({**start, "headers": headers})
+            await send({"type": "http.response.body", "body": body})
+            return
+        await send(message)
+
+    return wrapped
 
 
 class AuthContextMiddleware:
@@ -109,12 +163,12 @@ class AuthContextMiddleware:
                 REQUEST_USER_ID.set(str(user_id))
                 scope[SCOPE_USER_ID] = str(user_id)
             else:
-                # Falls through to FastMCP's own verifier, which will send the
-                # 401 + WWW-Authenticate challenge. Logged here because
-                # otherwise this and a real exchange failure look identical
-                # from outside the process: both end in a 401 with no body.
+                # Falls through to FastMCP's own verifier, which sends the 401
+                # + WWW-Authenticate challenge.
                 logger.debug("no bearer access token present for %s", path)
-            await self.app(scope, receive, send)
+            # Wraps every pass-through, not just the no-token branch: a token
+            # FastMCP rejects as invalid or expired gets the same empty 401.
+            await self.app(scope, receive, _with_unauthorized_body(send))
         finally:
             REQUEST_ACCESS_TOKEN.reset(token_reset)
             REQUEST_USER_ID.reset(user_reset)

@@ -18,7 +18,7 @@ from mcp_databricks.auth import (
     build_auth_provider,
 )
 from mcp_databricks.auth import public_base_url as auth_public_base_url
-from mcp_databricks.auth.consent_config import SERVER_DISPLAY_NAME, SERVER_WEBSITE
+from mcp_databricks.auth.consent_config import server_display_name, server_website
 from mcp_databricks.middleware import AuthContextMiddleware
 from mcp_databricks.policy import read_only_policy
 from mcp_databricks.tools import register_tools
@@ -89,8 +89,8 @@ def build_mcp() -> FastMCP:
     # Validate mandatory authorization policy at startup, before accepting traffic.
     read_only_policy()
     mcp = FastMCP(
-        SERVER_DISPLAY_NAME,
-        website_url=SERVER_WEBSITE,
+        server_display_name(),
+        website_url=server_website(),
         instructions=(
             "Read-only Databricks workspace access. "
             "Authenticate with the configured authorization server."

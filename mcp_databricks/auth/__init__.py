@@ -13,7 +13,7 @@ from mcp_auth_client import (
     public_base_url,
 )
 
-from mcp_databricks.auth.consent_config import SERVER_WEBSITE
+from mcp_databricks.auth.consent_config import server_website
 
 DEFAULT_CONNECTOR = "databricks"
 DEFAULT_EXCHANGE_CLIENT = "databricks-mcp"
@@ -161,7 +161,6 @@ def build_token_exchange_client():
 __all__ = [
     "CATALOG_READ_SCOPE",
     "PROTECTED_RESOURCE_SCOPES",
-    "SERVER_WEBSITE",
     "SQL_READ_SCOPE",
     "TokenExchangeError",
     "allowed_host_suffixes",
@@ -175,5 +174,6 @@ __all__ = [
     "auth_token_endpoint",
     "build_auth_provider",
     "build_token_exchange_client",
+    "server_website",
     "workspace_host",
 ]
