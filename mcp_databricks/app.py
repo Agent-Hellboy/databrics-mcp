@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+from urllib.parse import urlparse
 
 from fastmcp import FastMCP
 from starlette.middleware import Middleware
@@ -111,24 +112,58 @@ logger.info(
 )
 
 
-async def _bare_protected_resource_metadata(_request: Request) -> JSONResponse:
-    """Serve the same protected-resource metadata at the un-suffixed path.
+PROTECTED_RESOURCE_METADATA_PREFIX = "/.well-known/oauth-protected-resource"
 
-    RFC 9728 mounts it at /.well-known/oauth-protected-resource/mcp (path-scoped,
-    since one host could serve several resources), and that's the path FastMCP
-    registers. Some clients try the bare /.well-known/oauth-protected-resource
-    as a fallback before the suffixed one; observed against a real client
-    (Cursor/Claude Desktop) probing it and getting a 404 first. Serving the
-    identical document there too is cheap and improves compatibility.
+
+def protected_resource_metadata_document() -> dict:
+    """The one protected-resource metadata document (RFC 9728).
+
+    Served from this single function at both the path-scoped location
+    (/.well-known/oauth-protected-resource/mcp, where the WWW-Authenticate
+    challenge sends every client) and the bare one (which some clients probe
+    first), replacing the route FastMCP generates.
+
+    Replacing it is the point: FastMCP's route builds the document through
+    the upstream `mcp` package's ProtectedResourceMetadata model, whose
+    authorization_servers field is typed list[AnyHttpUrl], and pydantic
+    appends "/" to any URL with no path. The authorization server advertises
+    its issuer exactly as configured, with no trailing slash, and RFC 8414 §2
+    requires the issuer a client discovers to be identical to the one the
+    metadata names. Publishing "http://host/" here against an AS that says
+    "http://host" is a mismatch a strict client rejects, and it is not
+    fixable by passing a different string in: the normalization happens on
+    the way out, inside a pinned third-party model.
     """
     resource = auth_public_base_url()
-    return JSONResponse(
-        {
-            "resource": f"{resource}/mcp",
-            "authorization_servers": [auth_issuer()],
-            "scopes_supported": PROTECTED_RESOURCE_SCOPES,
-        }
-    )
+    return {
+        "resource": f"{resource}/mcp",
+        "authorization_servers": [auth_issuer()],
+        "scopes_supported": list(PROTECTED_RESOURCE_SCOPES),
+        "bearer_methods_supported": ["header"],
+    }
+
+
+def protected_resource_metadata_paths() -> tuple[str, ...]:
+    """Where the document above is served.
+
+    RFC 9728 §3.1 inserts /.well-known/oauth-protected-resource between the
+    host and the resource's own path, so a resource at
+    https://host/databricks/mcp publishes at
+    /.well-known/oauth-protected-resource/databricks/mcp. That path-scoped
+    location is the one the WWW-Authenticate challenge names, so it has to be
+    derived from the configured base URL rather than assumed to be "/mcp" —
+    a deployment behind a path prefix uses a different one. The bare path is
+    served too, because some clients probe it before the scoped one.
+    """
+    resource_path = urlparse(f"{auth_public_base_url()}/mcp").path
+    scoped = f"{PROTECTED_RESOURCE_METADATA_PREFIX}{resource_path}"
+    if scoped == PROTECTED_RESOURCE_METADATA_PREFIX:
+        return (scoped,)
+    return (scoped, PROTECTED_RESOURCE_METADATA_PREFIX)
+
+
+async def _protected_resource_metadata(_request: Request) -> JSONResponse:
+    return JSONResponse(protected_resource_metadata_document())
 
 
 class _CacheWellKnownResponses:
@@ -178,11 +213,19 @@ def create_app() -> ASGIApp:
         allowed_hosts=allowed_hosts(),
         middleware=[Middleware(AuthContextMiddleware)],
     )
-    http.add_route(
-        "/.well-known/oauth-protected-resource",
-        _bare_protected_resource_metadata,
-        methods=["GET"],
-    )
+    # Drop FastMCP's generated protected-resource-metadata route(s) and serve
+    # both the path-scoped and bare locations from one handler, so the two can
+    # never disagree. Routes are matched in order, so shadowing by appending
+    # would leave the generated one winning at the path-scoped location — the
+    # one the WWW-Authenticate challenge actually points clients at.
+    routes = http.router.routes
+    routes[:] = [
+        route
+        for route in routes
+        if not getattr(route, "path", "").startswith(PROTECTED_RESOURCE_METADATA_PREFIX)
+    ]
+    for path in protected_resource_metadata_paths():
+        http.add_route(path, _protected_resource_metadata, methods=["GET"])
     return UsageMetricsMiddleware(_CacheWellKnownResponses(http))
 
 
@@ -190,10 +233,12 @@ app = create_app()
 
 __all__ = [
     "DEFAULT_ALLOWED_HOSTS",
+    "PROTECTED_RESOURCE_METADATA_PREFIX",
     "allowed_hosts",
     "app",
     "build_mcp",
     "create_app",
     "host_origin_protection",
     "mcp",
+    "protected_resource_metadata_document",
 ]
