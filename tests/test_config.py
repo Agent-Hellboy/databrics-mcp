@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 from fastmcp.server.auth.auth import RemoteAuthProvider
 
+from mcp_databricks import config
 from mcp_databricks.auth import build_auth_provider
 from mcp_databricks.config import (
     credentials_from_access_token,
@@ -27,8 +28,6 @@ def test_credentials_from_access_token(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_sp_style_headers_are_not_used() -> None:
-    import mcp_databricks.config as config
-
     assert not hasattr(config, "credentials_from_headers")
     assert not hasattr(config, "HEADER_CLIENT_ID")
 
@@ -76,8 +75,8 @@ def test_build_auth_provider_is_a_resource_server() -> None:
 def test_workspace_client_uses_exchanged_token_not_mcp_jwt(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from mcp_databricks.config import REQUEST_ACCESS_TOKEN, REQUEST_USER_ID
     from mcp_databricks import client as client_mod
+    from mcp_databricks.config import REQUEST_ACCESS_TOKEN, REQUEST_USER_ID
 
     seen: dict[str, str] = {}
 

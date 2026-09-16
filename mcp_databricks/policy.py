@@ -23,7 +23,7 @@ class ReadOnlyPolicy:
     allowed_warehouse_ids: frozenset[str]
 
     @classmethod
-    def from_env(cls) -> "ReadOnlyPolicy":
+    def from_env(cls) -> ReadOnlyPolicy:
         group = _required_env("DATABRICKS_REQUIRED_GROUP")
         warehouse_ids = frozenset(
             item.strip()

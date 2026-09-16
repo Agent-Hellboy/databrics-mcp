@@ -77,6 +77,11 @@ The first three checks run in public CI without service credentials. The full
 test suite also requires the companion authorization-client package and its
 development dependencies.
 
+## Release
+
+Push a tag such as `v0.2.3`; the release workflow reruns validation, builds
+the Python distributions, and publishes a GitHub Release with the artifacts.
+
 ## Deployment
 
 - **Docker:** build `deploy/Dockerfile`, inject a secret-managed env file, and

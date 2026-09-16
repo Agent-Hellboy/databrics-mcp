@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from mcp_as_client import TokenExchangeError
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from mcp_databricks.middleware import AuthContextMiddleware
-from mcp_as_client import TokenExchangeError
 
 
 class _User:

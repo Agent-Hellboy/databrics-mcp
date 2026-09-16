@@ -6,11 +6,11 @@ import json
 import logging
 
 from fastmcp.server.dependencies import get_access_token
+from mcp_as_client import TokenExchangeError
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from mcp_databricks.auth import build_token_exchange_client
 from mcp_databricks.config import REQUEST_ACCESS_TOKEN, REQUEST_USER_ID, SCOPE_USER_ID
-from mcp_as_client import TokenExchangeError
 
 logger = logging.getLogger("databricks-mcp.middleware")
 

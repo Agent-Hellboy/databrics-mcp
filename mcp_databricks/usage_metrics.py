@@ -3,17 +3,21 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sqlite3
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from mcp_databricks.config import REQUEST_USER_ID, SCOPE_USER_ID
+
 SERVER_NAME = "databricks"
 DEFAULT_DB_PATH = "/tmp/databricks-mcp-metrics.sqlite3"
+logger = logging.getLogger("databricks-mcp.metrics")
 
 
 class UsageMetricsMiddleware:
@@ -79,15 +83,10 @@ class UsageMetricsMiddleware:
             headers = dict(scope.get("headers", []))
             client = scope.get("client") or ("unknown",)
             user_id = "unknown"
-            try:
-                from mcp_databricks.config import REQUEST_USER_ID, SCOPE_USER_ID
-
-                # scope first: this middleware wraps outside http_app, so by the time
-                # _record runs AuthContextMiddleware has reset the ContextVar and
-                # REQUEST_USER_ID.get() is None. The scope dict still holds it.
-                user_id = scope.get(SCOPE_USER_ID) or REQUEST_USER_ID.get() or user_id
-            except Exception:
-                pass
+            # scope first: this middleware wraps outside http_app, so by the time
+            # _record runs AuthContextMiddleware has reset the ContextVar and
+            # REQUEST_USER_ID.get() is None. The scope dict still holds it.
+            user_id = scope.get(SCOPE_USER_ID) or REQUEST_USER_ID.get() or user_id
             if user_id == "unknown":
                 user_id = (
                     headers.get(b"x-databricks-user", b"").decode("latin-1")
@@ -126,8 +125,9 @@ class UsageMetricsMiddleware:
                         str(client[0]),
                         headers.get(b"user-agent", b"").decode("latin-1") or None,
                         None,
-                        datetime.now(timezone.utc).isoformat(),
+                        datetime.now(UTC).isoformat(),
                     ),
                 )
         except Exception:
+            logger.debug("metrics recording failed", exc_info=True)
             return
