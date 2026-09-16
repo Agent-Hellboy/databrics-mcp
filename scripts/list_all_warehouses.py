@@ -35,7 +35,7 @@ def main() -> int:
 
     print(f"{'ID':<20} {'STATE':<12} NAME")
     for warehouse in warehouses:
-        print(f"{warehouse.id:<20} {str(warehouse.state):<12} {warehouse.name}")
+        print(f"{warehouse.id:<20} {warehouse.state!s:<12} {warehouse.name}")
 
     print(
         "\nSet DATABRICKS_ALLOWED_WAREHOUSE_IDS to a comma-separated list of the "
