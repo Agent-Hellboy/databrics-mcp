@@ -13,7 +13,6 @@ from mcp_auth_client import PrivateKeyJWTClientAuth, TokenExchangeClient
 
 from mcp_databricks.auth.consent_config import SERVER_WEBSITE
 
-DEFAULT_ISSUER = "https://auth.example.com"
 DEFAULT_CONNECTOR = "databricks"
 DEFAULT_EXCHANGE_CLIENT = "databricks-mcp"
 DEFAULT_ALLOWED_HOST_SUFFIXES = (
@@ -85,7 +84,10 @@ def workspace_host() -> str:
 
 
 def auth_issuer() -> str:
-    return (os.getenv("MCP_AUTH_ISSUER", "").strip() or DEFAULT_ISSUER).rstrip("/")
+    issuer = os.getenv("MCP_AUTH_ISSUER", "").strip()
+    if not issuer:
+        raise ValueError("MCP_AUTH_ISSUER is required")
+    return issuer.rstrip("/")
 
 
 def auth_jwks_uri() -> str:

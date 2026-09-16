@@ -380,7 +380,7 @@ requires-dist = [
     { name = "fastmcp", specifier = ">=3.4.4,<4" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27,<1" },
     { name = "mcp", specifier = ">=1.27,<2" },
-    { name = "mcp-auth-client", git = "https://github.com/Agent-Hellboy/mcp-auth.git?subdirectory=auth-client%2Fpython&rev=00614c3aa65efa6908c5a7ce712daa129bc46d99" },
+    { name = "mcp-auth-client", git = "https://github.com/Agent-Hellboy/mcp-auth.git?subdirectory=auth-client%2Fpython&rev=3182a4cfd4b6f4bb2f032ce485a4410602f2617f" },
     { name = "pyjwt", specifier = ">=2.8,<3" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8,<9" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.24,<1" },
@@ -758,7 +758,7 @@ wheels = [
 [[package]]
 name = "mcp-auth-client"
 version = "0.1.0"
-source = { git = "https://github.com/Agent-Hellboy/mcp-auth.git?subdirectory=auth-client%2Fpython&rev=00614c3aa65efa6908c5a7ce712daa129bc46d99#00614c3aa65efa6908c5a7ce712daa129bc46d99" }
+source = { git = "https://github.com/Agent-Hellboy/mcp-auth.git?subdirectory=auth-client%2Fpython&rev=3182a4cfd4b6f4bb2f032ce485a4410602f2617f#3182a4cfd4b6f4bb2f032ce485a4410602f2617f" }
 dependencies = [
     { name = "httpx" },
     { name = "pyjwt", extra = ["crypto"] },

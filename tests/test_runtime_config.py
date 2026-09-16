@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from mcp_databricks.app import allowed_hosts, host_origin_protection
-from mcp_databricks.auth import allowed_host_suffixes, workspace_host
+from mcp_databricks.auth import allowed_host_suffixes, auth_issuer, workspace_host
 
 
 def test_allowed_hosts_are_configurable(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -72,3 +72,14 @@ def test_workspace_host_remains_fail_closed(
     monkeypatch.setenv("DATABRICKS_ALLOWED_HOST_SUFFIXES", "")
     with pytest.raises(ValueError, match="must not be empty"):
         allowed_host_suffixes()
+
+
+def test_auth_issuer_has_no_silent_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    # A misconfigured deployment must fail loudly at startup rather than
+    # trust a placeholder issuer that no real token was ever signed by.
+    monkeypatch.setenv("MCP_AUTH_ISSUER", "")
+    with pytest.raises(ValueError, match="MCP_AUTH_ISSUER is required"):
+        auth_issuer()
+
+    monkeypatch.setenv("MCP_AUTH_ISSUER", "https://auth.example.com/")
+    assert auth_issuer() == "https://auth.example.com"

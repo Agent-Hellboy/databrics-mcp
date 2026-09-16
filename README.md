@@ -47,6 +47,11 @@ deployment-specific values:
 | `DATABRICKS_REQUIRED_GROUP` | Required Databricks group |
 | `DATABRICKS_ALLOWED_WAREHOUSE_IDS` | Explicit warehouse allowlist |
 
+`list_warehouses` only ever returns warehouses already on that allowlist, so
+run [`scripts/list_all_warehouses.py`](scripts/list_all_warehouses.py) once,
+directly against the workspace, to find the IDs to put in it — see
+[Bootstrapping DATABRICKS_ALLOWED_WAREHOUSE_IDS](docs/authorization.md#bootstrapping-databricks_allowed_warehouse_ids).
+
 Keep real credentials, tokens, keys, and deployment env files out of Git.
 
 ## Run locally

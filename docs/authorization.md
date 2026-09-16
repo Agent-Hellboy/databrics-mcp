@@ -79,6 +79,30 @@ The canonical resource URL must match the audience for issued MCP tokens. The
 resource-server private key authenticates the service during token exchange; it
 is not a user credential and must be mounted from a secret store.
 
+## Bootstrapping DATABRICKS_ALLOWED_WAREHOUSE_IDS
+
+`DATABRICKS_ALLOWED_WAREHOUSE_IDS` is fail-closed: the `list_warehouses` MCP
+tool only ever returns warehouses already on that list, independent of the
+caller's upstream OAuth scopes. That means the tool can't be used to discover
+which IDs to put in the allowlist in the first place — by the time it can see
+a warehouse, that warehouse is already approved.
+
+To find the IDs before the service is configured, run
+[`scripts/list_all_warehouses.py`](../scripts/list_all_warehouses.py) once,
+directly against the workspace, using an operator's own Databricks credentials
+(for example `DATABRICKS_HOST` and `DATABRICKS_TOKEN`, or a configured CLI
+profile) rather than the MCP OAuth flow:
+
+```bash
+DATABRICKS_HOST=https://workspace.cloud.databricks.com \
+DATABRICKS_TOKEN=... \
+uv run python scripts/list_all_warehouses.py
+```
+
+Pick the IDs that should be reachable through this MCP server and set
+`DATABRICKS_ALLOWED_WAREHOUSE_IDS` to that comma-separated list. The script is
+not part of the MCP tool surface and is never exposed to MCP clients.
+
 ## Third-party authorization servers
 
 A third-party authorization server can be used if it supports the MCP OAuth
