@@ -46,6 +46,7 @@ deployment-specific values:
 | `MCP_AUTH_CLIENT_KEY_ID_FILE` | Exchange-key identifier |
 | `DATABRICKS_REQUIRED_GROUP` | Required Databricks group |
 | `DATABRICKS_ALLOWED_WAREHOUSE_IDS` | Explicit warehouse allowlist |
+| `MCP_ALLOWED_HOSTS` | Allowed `Host` header values, comma-separated. Must match the incoming `Host` header exactly, including the port whenever the service is reached on a non-standard one (`mcp.example.com:6328` for a direct port, vs. the bare `mcp.example.com` a standard-port HTTPS reverse proxy sends). The default only covers `:6328`; remapping the container's port without updating this is the classic way to turn a healthy deployment into a 421. |
 
 `list_warehouses` only ever returns warehouses already on that allowlist, so
 run [`scripts/list_all_warehouses.py`](scripts/list_all_warehouses.py) once,

@@ -12,8 +12,11 @@ COPY mcp_databricks /app/mcp_databricks
 
 # --reinstall-package: neither local package's version changes between releases,
 # so the uv cache would otherwise serve stale wheels and silently ship old code.
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-editable \
+# No cache mount here: it requires BuildKit's buildx component, which isn't
+# guaranteed on a stock Docker install, and deploy/README.md documents a
+# plain `docker build`. This build is not repeated often enough for the
+# cache to be worth that portability cost.
+RUN uv sync --frozen --no-dev --no-editable \
         --reinstall-package databricks-mcp --reinstall-package mcp-auth-client
 
 FROM python:3.12-slim

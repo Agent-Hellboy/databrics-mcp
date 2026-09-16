@@ -43,3 +43,19 @@ jobs:
         run: |
           uv sync --frozen --extra dev
           uv run pytest
+
+  docker-build:
+    name: Docker build (documented command)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # Runs the exact command deploy/README.md documents, with BuildKit
+      # disabled, so a Dockerfile change that only works with buildx (which
+      # isn't guaranteed on a stock Docker install) fails here instead of
+      # silently landing.
+      - name: Build deploy/Dockerfile with the plain docker CLI
+        env:
+          DOCKER_BUILDKIT: "0"
+        run: docker build -f deploy/Dockerfile -t databricks-mcp:ci .

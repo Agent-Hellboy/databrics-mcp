@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 
-from fastmcp.server.auth import RemoteAuthProvider
-from fastmcp.server.auth.providers.jwt import JWTVerifier
-from mcp_auth_client import PrivateKeyJWTClientAuth, TokenExchangeClient
+from mcp_auth_client import (
+    TokenExchangeError,
+    build_exchange_client,
+    build_remote_auth,
+    public_base_url,
+)
 
 from mcp_databricks.auth.consent_config import SERVER_WEBSITE
 
@@ -20,31 +22,6 @@ DEFAULT_ALLOWED_HOST_SUFFIXES = (
     ".azuredatabricks.net",
     ".gcp.databricks.com",
 )
-
-
-class TokenExchangeError(RuntimeError):
-    """Raised when the configured downstream token exchange cannot complete."""
-
-
-@dataclass
-class _TokenExchangeAdapter:
-    client: TokenExchangeClient
-    audience: str
-    entered: bool = False
-
-    async def exchange(self, subject_token: str):
-        try:
-            if not self.entered:
-                await self.client.__aenter__()
-                self.entered = True
-            return await self.client.exchange(subject_token, audience=self.audience)
-        except Exception as exc:
-            raise TokenExchangeError("downstream token exchange failed") from exc
-
-    async def aclose(self) -> None:
-        if self.entered:
-            await self.client.__aexit__(None, None, None)
-            self.entered = False
 
 
 def allowed_host_suffixes() -> tuple[str, ...]:
@@ -101,14 +78,6 @@ def auth_token_endpoint() -> str:
     return os.getenv("MCP_AUTH_TOKEN_ENDPOINT", "").strip() or f"{auth_issuer()}/token"
 
 
-def public_base_url() -> str:
-    for key in ("PUBLIC_BASE_URL", "MCP_SERVER_URL"):
-        value = os.getenv(key, "").strip().rstrip("/")
-        if value:
-            return value
-    raise ValueError("one of PUBLIC_BASE_URL or MCP_SERVER_URL is required")
-
-
 def auth_jwks_ssrf_safe() -> bool:
     raw = os.getenv("MCP_AUTH_JWKS_SSRF_SAFE", "true").strip().lower()
     if raw in {"1", "true", "yes", "on"}:
@@ -161,30 +130,23 @@ def auth_exchange_key_id() -> str:
 
 
 def build_auth_provider():
-    resource = public_base_url()
-    verifier = JWTVerifier(
-        jwks_uri=auth_jwks_uri(),
+    return build_remote_auth(
+        resource_url=public_base_url(),
         issuer=auth_issuer(),
-        audience=f"{resource}/mcp",
-        base_url=resource,
+        jwks_uri=auth_jwks_uri(),
+        scopes_supported=["catalog:read", "sql:read"],
         ssrf_safe=auth_jwks_ssrf_safe(),
     )
-    return RemoteAuthProvider(
-        token_verifier=verifier,
-        authorization_servers=[auth_issuer()],
-        base_url=resource,
-        scopes_supported=["catalog:read", "sql:read"],
-    )
 
 
-def build_token_exchange_client() -> _TokenExchangeAdapter:
-    client_auth = PrivateKeyJWTClientAuth(
+def build_token_exchange_client():
+    return build_exchange_client(
+        auth_token_endpoint(),
+        auth_connector(),
         auth_exchange_client_id(),
         auth_exchange_private_key(),
         auth_exchange_key_id(),
     )
-    client = TokenExchangeClient(auth_token_endpoint(), client_auth=client_auth)
-    return _TokenExchangeAdapter(client, auth_connector())
 
 
 __all__ = [
