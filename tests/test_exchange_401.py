@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from mcp_as_client import TokenExchangeError
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
+from mcp_databricks.auth import TokenExchangeError
 from mcp_databricks.middleware import AuthContextMiddleware
 
 
@@ -34,7 +34,7 @@ class _InjectUser:
 
 class _FailingExchange:
     async def exchange(self, token: str):
-        raise TokenExchangeError("invalid_grant", "nope", status_code=401)
+        raise TokenExchangeError("downstream token exchange failed")
 
 
 @pytest.fixture

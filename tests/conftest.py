@@ -14,6 +14,10 @@ os.environ.setdefault(
 os.environ.setdefault("MCP_AUTH_TOKEN_ENDPOINT", "https://auth.example.com/token")
 os.environ.setdefault("MCP_AUTH_CONNECTOR", "databricks")
 os.environ.setdefault("MCP_AUTH_JWKS_SSRF_SAFE", "false")
+os.environ.setdefault(
+    "MCP_ALLOWED_HOSTS", "127.0.0.1,127.0.0.1:6328,localhost,localhost:6328,test"
+)
+os.environ.setdefault("MCP_HOST_ORIGIN_PROTECTION", "false")
 os.environ.setdefault("MCP_METRICS_ENABLED", "false")
 os.environ.setdefault("DATABRICKS_REQUIRED_GROUP", "mcp_users")
 os.environ.setdefault("DATABRICKS_ALLOWED_WAREHOUSE_IDS", "warehouse-test")

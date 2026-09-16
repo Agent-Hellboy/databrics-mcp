@@ -3,21 +3,68 @@
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 
-from mcp_as_client import (
-    TokenExchangeClient,
-    build_exchange_client,
-    build_remote_auth,
-    public_base_url,
-)
+from fastmcp.server.auth import RemoteAuthProvider
+from fastmcp.server.auth.providers.jwt import JWTVerifier
+from mcp_auth_client import PrivateKeyJWTClientAuth, TokenExchangeClient
 
 from mcp_databricks.auth.consent_config import SERVER_WEBSITE
 
 DEFAULT_ISSUER = "https://auth.example.com"
 DEFAULT_CONNECTOR = "databricks"
 DEFAULT_EXCHANGE_CLIENT = "databricks-mcp"
+DEFAULT_ALLOWED_HOST_SUFFIXES = (
+    ".cloud.databricks.com",
+    ".azuredatabricks.net",
+    ".gcp.databricks.com",
+)
+
+
+class TokenExchangeError(RuntimeError):
+    """Raised when the configured downstream token exchange cannot complete."""
+
+
+@dataclass
+class _TokenExchangeAdapter:
+    client: TokenExchangeClient
+    audience: str
+    entered: bool = False
+
+    async def exchange(self, subject_token: str):
+        try:
+            if not self.entered:
+                await self.client.__aenter__()
+                self.entered = True
+            return await self.client.exchange(subject_token, audience=self.audience)
+        except Exception as exc:
+            raise TokenExchangeError("downstream token exchange failed") from exc
+
+    async def aclose(self) -> None:
+        if self.entered:
+            await self.client.__aexit__(None, None, None)
+            self.entered = False
+
+
+def allowed_host_suffixes() -> tuple[str, ...]:
+    raw = os.getenv("DATABRICKS_ALLOWED_HOST_SUFFIXES")
+    if raw is None:
+        return DEFAULT_ALLOWED_HOST_SUFFIXES
+    suffixes = tuple(
+        f".{item.strip().lower().lstrip('*.')}"
+        for item in raw.split(",")
+        if item.strip()
+    )
+    if not suffixes:
+        raise ValueError("DATABRICKS_ALLOWED_HOST_SUFFIXES must not be empty")
+    if any(
+        any(character in suffix for character in ":/\\") or suffix == "."
+        for suffix in suffixes
+    ):
+        raise ValueError("DATABRICKS_ALLOWED_HOST_SUFFIXES contains an invalid suffix")
+    return suffixes
 
 
 def workspace_host() -> str:
@@ -26,7 +73,10 @@ def workspace_host() -> str:
     if (
         parsed.scheme != "https"
         or not parsed.hostname
-        or not parsed.hostname.endswith(".cloud.databricks.com")
+        or not any(
+            parsed.hostname.lower().endswith(suffix)
+            for suffix in allowed_host_suffixes()
+        )
     ):
         raise ValueError(
             "DATABRICKS_HOST must be an approved HTTPS Databricks workspace host."
@@ -47,6 +97,23 @@ def auth_jwks_uri() -> str:
 
 def auth_token_endpoint() -> str:
     return os.getenv("MCP_AUTH_TOKEN_ENDPOINT", "").strip() or f"{auth_issuer()}/token"
+
+
+def public_base_url() -> str:
+    for key in ("PUBLIC_BASE_URL", "MCP_SERVER_URL"):
+        value = os.getenv(key, "").strip().rstrip("/")
+        if value:
+            return value
+    raise ValueError("one of PUBLIC_BASE_URL or MCP_SERVER_URL is required")
+
+
+def auth_jwks_ssrf_safe() -> bool:
+    raw = os.getenv("MCP_AUTH_JWKS_SSRF_SAFE", "true").strip().lower()
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+    if raw in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError("MCP_AUTH_JWKS_SSRF_SAFE must be a boolean")
 
 
 def auth_connector() -> str:
@@ -92,34 +159,42 @@ def auth_exchange_key_id() -> str:
 
 
 def build_auth_provider():
-    resource = public_base_url(env_keys=("PUBLIC_BASE_URL", "MCP_SERVER_URL"))
-    return build_remote_auth(
-        resource_url=resource,
-        issuer=auth_issuer(),
+    resource = public_base_url()
+    verifier = JWTVerifier(
         jwks_uri=auth_jwks_uri(),
+        issuer=auth_issuer(),
+        audience=f"{resource}/mcp",
+        base_url=resource,
+        ssrf_safe=auth_jwks_ssrf_safe(),
+    )
+    return RemoteAuthProvider(
+        token_verifier=verifier,
+        authorization_servers=[auth_issuer()],
+        base_url=resource,
         scopes_supported=["catalog:read", "sql:read"],
-        ssrf_safe=os.getenv("MCP_AUTH_JWKS_SSRF_SAFE", "true").lower()
-        not in {"0", "false", "no", "off"},
     )
 
 
-def build_token_exchange_client() -> TokenExchangeClient:
-    return build_exchange_client(
-        token_endpoint=auth_token_endpoint(),
-        audience=auth_connector(),
-        client_id=auth_exchange_client_id(),
-        private_key=auth_exchange_private_key(),
-        key_id=auth_exchange_key_id(),
+def build_token_exchange_client() -> _TokenExchangeAdapter:
+    client_auth = PrivateKeyJWTClientAuth(
+        auth_exchange_client_id(),
+        auth_exchange_private_key(),
+        auth_exchange_key_id(),
     )
+    client = TokenExchangeClient(auth_token_endpoint(), client_auth=client_auth)
+    return _TokenExchangeAdapter(client, auth_connector())
 
 
 __all__ = [
     "SERVER_WEBSITE",
+    "TokenExchangeError",
+    "allowed_host_suffixes",
     "auth_connector",
     "auth_exchange_client_id",
     "auth_exchange_key_id",
     "auth_exchange_private_key",
     "auth_issuer",
+    "auth_jwks_ssrf_safe",
     "auth_jwks_uri",
     "auth_token_endpoint",
     "build_auth_provider",

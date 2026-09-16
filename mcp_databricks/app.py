@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 
 from fastmcp import FastMCP
 from starlette.middleware import Middleware
@@ -16,6 +17,23 @@ from mcp_databricks.tools import register_tools
 from mcp_databricks.usage_metrics import UsageMetricsMiddleware
 
 logger = logging.getLogger("databricks-mcp")
+
+DEFAULT_ALLOWED_HOSTS = ("127.0.0.1", "127.0.0.1:6328", "localhost", "localhost:6328")
+
+
+def allowed_hosts() -> list[str]:
+    raw = os.getenv("MCP_ALLOWED_HOSTS", "")
+    hosts = [item.strip() for item in raw.split(",") if item.strip()]
+    return hosts or list(DEFAULT_ALLOWED_HOSTS)
+
+
+def host_origin_protection() -> bool:
+    raw = os.getenv("MCP_HOST_ORIGIN_PROTECTION", "true").strip().lower()
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+    if raw in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError("MCP_HOST_ORIGIN_PROTECTION must be a boolean")
 
 
 def build_mcp() -> FastMCP:
@@ -47,8 +65,8 @@ def create_app() -> ASGIApp:
     http = mcp.http_app(
         path="/mcp",
         transport="streamable-http",
-        host_origin_protection=False,
-        allowed_hosts=["127.0.0.1", "127.0.0.1:6328", "localhost", "localhost:6328"],
+        host_origin_protection=host_origin_protection(),
+        allowed_hosts=allowed_hosts(),
         middleware=[Middleware(AuthContextMiddleware)],
     )
     return UsageMetricsMiddleware(http)
@@ -56,4 +74,12 @@ def create_app() -> ASGIApp:
 
 app = create_app()
 
-__all__ = ["app", "build_mcp", "create_app", "mcp"]
+__all__ = [
+    "DEFAULT_ALLOWED_HOSTS",
+    "allowed_hosts",
+    "app",
+    "build_mcp",
+    "create_app",
+    "host_origin_protection",
+    "mcp",
+]

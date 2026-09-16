@@ -25,6 +25,11 @@ and set:
 - the resource-server exchange client key files;
 - the required Databricks group;
 - approved SQL warehouse IDs.
+- `MCP_ALLOWED_HOSTS`, as a comma-separated list of accepted Host values;
+- `MCP_HOST_ORIGIN_PROTECTION=true` unless the proxy cannot provide a matching
+  Origin header;
+- `DATABRICKS_ALLOWED_HOST_SUFFIXES` when using a supported Databricks cloud
+  hostname outside the default AWS, Azure, and GCP suffixes.
 
 Startup must fail closed when the required group, warehouse allowlist, workspace
 host, or exchange credentials are missing.
@@ -41,6 +46,21 @@ docker run -d --name databricks-mcp-server --restart unless-stopped \
   databricks-mcp:latest
 ```
 
+Create the named volume and resource-server keypair before the first run. The
+key ID must match the public key registered with the authorization server:
+
+```bash
+docker volume create mcp-resource-auth
+docker run --rm -v mcp-resource-auth:/var/lib/mcp-resource-auth alpine:3.20 \
+  sh -c 'apk add --no-cache openssl >/dev/null && umask 077 && \
+    openssl genrsa -out /var/lib/mcp-resource-auth/private.pem 2048 && \
+    printf "%s\\n" databricks-mcp-resource > /var/lib/mcp-resource-auth/key_id'
+```
+
+The image keeps JWKS SSRF protection enabled by default. If a deployment has a
+reviewed private-network JWKS endpoint, set `MCP_AUTH_JWKS_SSRF_SAFE=false` in
+the runtime environment; it is intentionally not baked into the image.
+
 The container should listen only on loopback and sit behind an HTTPS reverse
 proxy. Mount the resource-server private key read-only. Never mount user OAuth
 client secrets or authorization-server signing keys into this container.
@@ -50,8 +70,8 @@ client secrets or authorization-server signing keys into this container.
 Expose the MCP endpoint and its Protected Resource Metadata endpoint. A typical
 deployment uses:
 
-- `/databricks` for MCP traffic;
-- `/.well-known/oauth-protected-resource/databricks` for discovery;
+- `/databricks/mcp` for MCP traffic (`/databricks` may remain as a compatibility alias);
+- `/.well-known/oauth-protected-resource/databricks/mcp` for discovery;
 - a separate authorization-service host or path for OAuth endpoints.
 
 The proxy must preserve `Authorization`, `Origin`, and MCP transport headers,
@@ -63,8 +83,8 @@ Validate the proxy configuration before reloading it.
 Check discovery and the unauthenticated challenge before testing a browser flow:
 
 ```bash
-curl -i https://mcp.example.com/.well-known/oauth-protected-resource/databricks
-curl -i -X POST https://mcp.example.com/databricks \
+curl -i https://mcp.example.com/.well-known/oauth-protected-resource/databricks/mcp
+curl -i -X POST https://mcp.example.com/databricks/mcp \
   -H 'Accept: application/json, text/event-stream' \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'

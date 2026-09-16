@@ -98,7 +98,7 @@ describes the resource-server side of this pattern.
 
 The proxy must expose:
 
-- the MCP endpoint, usually `/databricks` or `/mcp`;
+- the MCP endpoint, usually `/databricks/mcp` or `/mcp`;
 - the corresponding `/.well-known/oauth-protected-resource/...` metadata path;
 - a callback route only when the authorization service requires one.
 

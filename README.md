@@ -28,7 +28,7 @@ exposed.
 - Python 3.12+
 - A Databricks workspace
 - An MCP-compatible OAuth authorization server
-- The companion authorization-client package configured in `pyproject.toml`
+- Network access to fetch the pinned `mcp-auth-client` dependency from GitHub
 
 ## Configuration
 
@@ -38,7 +38,7 @@ deployment-specific values:
 | Variable | Purpose |
 | --- | --- |
 | `DATABRICKS_HOST` | HTTPS Databricks workspace URL |
-| `PUBLIC_BASE_URL` / `MCP_SERVER_URL` | Canonical MCP resource URL |
+| `PUBLIC_BASE_URL` / `MCP_SERVER_URL` | Public service base URL; `/mcp` is appended for the MCP resource |
 | `MCP_AUTH_ISSUER` | Authorization-server issuer |
 | `MCP_AUTH_JWKS_URI` | JWKS endpoint for access-token validation |
 | `MCP_AUTH_TOKEN_ENDPOINT` | Optional downstream token-exchange endpoint |
@@ -73,9 +73,8 @@ python -m compileall -q mcp_databricks tests
 uv run pytest
 ```
 
-The first three checks run in public CI without service credentials. The full
-test suite also requires the companion authorization-client package and its
-development dependencies.
+The first three checks run in public CI without service credentials. `uv sync`
+fetches the pinned authorization-client SDK before running the full test suite.
 
 ## Release
 

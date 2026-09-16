@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 
 BASE_URL = "https://mcp.example.com/databricks"
-PRM_PATH = "/.well-known/oauth-protected-resource/databricks"
+PRM_PATH = "/.well-known/oauth-protected-resource/databricks/mcp"
 
 
 @pytest.fixture
@@ -38,19 +38,18 @@ async def test_protected_resource_metadata_is_served_at_the_service_scoped_path(
         response = await c.get(PRM_PATH)
     assert response.status_code == 200
     body = response.json()
-    # Bare /<service>, not <service>/mcp: a client configured with the bare service URL
-    # derives this as its RFC 8707 resource, and a mismatch surfaces as an opaque
-    # server_error (fastmcp raises invalid_target, which mcp<2.0 cannot serialize).
-    assert body["resource"] == BASE_URL
-    assert body["authorization_servers"] == ["https://auth.example.com"]
+    assert body["resource"] == f"{BASE_URL}/mcp"
+    assert [issuer.rstrip("/") for issuer in body["authorization_servers"]] == [
+        "https://auth.example.com"
+    ]
     assert body["bearer_methods_supported"] == ["header"]
 
 
 @pytest.mark.anyio
-async def test_prm_is_not_served_under_the_mcp_suffix(client) -> None:
-    """Guards the nginx route: the /mcp-suffixed path must stay absent."""
+async def test_prm_is_not_served_at_the_bare_service_path(client) -> None:
+    """The FastMCP resource is the mounted /mcp endpoint."""
     async with client as c:
-        response = await c.get(f"{PRM_PATH}/mcp")
+        response = await c.get(PRM_PATH.removesuffix("/mcp"))
     assert response.status_code == 404
 
 

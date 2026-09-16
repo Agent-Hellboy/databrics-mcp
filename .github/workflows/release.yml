@@ -21,6 +21,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
       - name: Ruff lint
         uses: astral-sh/ruff-action@v3
         with:
@@ -35,6 +38,11 @@ jobs:
 
       - name: Compile Python sources
         run: python -m compileall -q mcp_databricks tests
+
+      - name: Run tests
+        run: |
+          uv sync --frozen --extra dev
+          uv run pytest
 
   publish:
     name: Build and publish release
