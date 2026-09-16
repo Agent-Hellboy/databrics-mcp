@@ -31,5 +31,12 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 USER appuser
 ENV MCP_METRICS_DB_PATH=/metrics/databricks-mcp-metrics.sqlite3
+# 0.0.0.0 so the container is reachable at all; server.py's own MCP_HOST
+# default (127.0.0.1) is meant for a bare-metal/dev run, not a container.
+ENV MCP_HOST=0.0.0.0
 EXPOSE 6328
-CMD ["uvicorn", "mcp_databricks.app:app", "--host", "0.0.0.0", "--port", "6328"]
+# Runs server.py's entrypoint instead of invoking uvicorn directly, so
+# MCP_PORT/MCP_HOST/MCP_LOG_LEVEL actually take effect here — a hardcoded
+# `uvicorn ... --port 6328` CMD made MCP_PORT a documented setting that did
+# nothing for this, the only supported deployment path.
+CMD ["python", "-m", "mcp_databricks"]

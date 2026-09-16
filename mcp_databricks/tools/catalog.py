@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastmcp import FastMCP
 from fastmcp.server.auth import require_scopes
 
+from mcp_databricks.auth import CATALOG_READ_SCOPE
 from mcp_databricks.client import workspace_client
 from mcp_databricks.config import validate_table_identifier
 
@@ -110,7 +111,7 @@ def register(mcp: FastMCP) -> None:
         describe_table,
         search_tables,
     ):
-        mcp.tool(auth=require_scopes("catalog:read"))(tool)
+        mcp.tool(auth=require_scopes(CATALOG_READ_SCOPE))(tool)
 
 
 __all__ = [

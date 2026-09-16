@@ -18,7 +18,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from mcp_databricks.config import SCOPE_USER_ID
-from mcp_databricks.middleware import AuthContextMiddleware
+from mcp_databricks.middleware import AuthContextMiddleware, _resolve_user_id
 
 USER = "user@example.com"
 DCR_CLIENT_ID = "dd842253-82b4-4327-936a-aabe5fe453e0"
@@ -116,3 +116,20 @@ async def test_client_id_is_the_last_resort(monkeypatch: pytest.MonkeyPatch) -> 
     """With no identity claim at all there is nothing better than the DCR client."""
     access = _AccessToken(claims={"iss": "https://auth.example.com"})
     assert await _user_id_for(access, monkeypatch) == DCR_CLIENT_ID
+
+
+def test_resolve_user_id_reports_which_source_supplied_it() -> None:
+    """The debug log's whole point is naming which fallback fired; lock in the labels."""
+    access = _AccessToken(claims={"sub": USER}, subject=None)
+    assert _resolve_user_id(access, access.claims, DCR_CLIENT_ID) == (
+        USER,
+        "claims.sub",
+    )
+
+    subject_access = _AccessToken(claims={}, subject=USER)
+    assert _resolve_user_id(subject_access, {}, DCR_CLIENT_ID) == (
+        USER,
+        "access_token.subject",
+    )
+
+    assert _resolve_user_id(_AccessToken(claims={}), {}, None) == ("unknown", "none")

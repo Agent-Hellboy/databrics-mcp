@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastmcp import FastMCP
 from fastmcp.server.auth import require_scopes
 
+from mcp_databricks.auth import SQL_READ_SCOPE
 from mcp_databricks.client import workspace_client
 from mcp_databricks.policy import read_only_policy
 
@@ -25,7 +26,7 @@ def list_warehouses() -> list[dict]:
 
 
 def register(mcp: FastMCP) -> None:
-    mcp.tool(auth=require_scopes("sql:read"))(list_warehouses)
+    mcp.tool(auth=require_scopes(SQL_READ_SCOPE))(list_warehouses)
 
 
 __all__ = ["list_warehouses", "register"]

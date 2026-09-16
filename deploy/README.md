@@ -94,6 +94,26 @@ Expected behavior is a metadata response followed by `401 Unauthorized` with a
 `WWW-Authenticate` resource-metadata challenge. After authorization, verify a
 catalog read, a bounded SQL read, group denial, and warehouse allowlist denial.
 
+## Loopback / SSH-tunnel deployment
+
+Testing against a real client (Cursor, Claude Desktop) over an SSH tunnel
+before a reverse proxy exists surfaces two gotchas that don't show up in a
+same-host Docker Compose test:
+
+- **`localhost` and `127.0.0.1` are different strings to an issuer/audience
+  comparison, even though they resolve alike.** `PUBLIC_BASE_URL`,
+  `MCP_AUTH_ISSUER`, `MCP_ALLOWED_HOSTS`, the authorization server's
+  `allowed_upstream_callback_uris`, and whatever URL the client itself is
+  configured with must all agree on one form. Picking `127.0.0.1` everywhere
+  avoids the next problem too.
+- **`docker run -p 127.0.0.1:6328:6328` only publishes the IPv4 loopback
+  address.** Where `localhost` resolves to `::1` first — common on macOS — an
+  SSH tunnel forwarding `localhost` lands on an address nothing is listening
+  on and fails with an unhelpful "fetch failed", not a connection-refused
+  error that would point at the real cause. Tunnel to `127.0.0.1` explicitly
+  (`ssh -L 6328:127.0.0.1:6328 ...`), or publish both address families
+  (`-p 6328:6328` binds all interfaces, or add an explicit `-p [::1]:6328:6328`).
+
 ## Rollback
 
 Keep the previous image tag and deployment configuration. Roll back the image,

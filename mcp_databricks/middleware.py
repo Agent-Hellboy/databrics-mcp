@@ -71,16 +71,26 @@ class AuthContextMiddleware:
 
         token_reset = REQUEST_ACCESS_TOKEN.set(None)
         user_reset = REQUEST_USER_ID.set(None)
+        path = scope.get("path")
         try:
             user = scope.get("user")
             access = getattr(user, "access_token", None) if user is not None else None
             if access is None:
                 access = get_access_token()
             if access and getattr(access, "token", None):
+                client_id = getattr(access, "client_id", None)
                 try:
                     exchanged = await _exchange_client().exchange(access.token)
                 except TokenExchangeError as exc:
-                    logger.warning("token exchange failed: %s", exc)
+                    # Never log the token itself; client_id (a DCR registration
+                    # id, not a secret) is enough to correlate with the auth
+                    # server's own audit log for the same failure.
+                    logger.warning(
+                        "token exchange failed for %s (client_id=%s): %s",
+                        path,
+                        client_id,
+                        exc,
+                    )
                     await _send_unauthorized(send, "upstream token exchange failed")
                     return
                 REQUEST_ACCESS_TOKEN.set(exchanged.access_token)
@@ -89,20 +99,41 @@ class AuthContextMiddleware:
                 # MCP JWT's `sub` survives only in the parsed claims. Reading it there
                 # is what keeps this off the DCR client id, which names a client
                 # registration rather than a person.
-                user_id = (
-                    getattr(access, "subject", None)
-                    or claims.get("sub")
-                    or claims.get("email")
-                    or claims.get("preferred_username")
-                    or getattr(access, "client_id", None)
-                    or "unknown"
+                user_id, claim_source = _resolve_user_id(access, claims, client_id)
+                logger.debug(
+                    "resolved identity for %s: user_id=%s (from %s)",
+                    path,
+                    user_id,
+                    claim_source,
                 )
                 REQUEST_USER_ID.set(str(user_id))
                 scope[SCOPE_USER_ID] = str(user_id)
+            else:
+                # Falls through to FastMCP's own verifier, which will send the
+                # 401 + WWW-Authenticate challenge. Logged here because
+                # otherwise this and a real exchange failure look identical
+                # from outside the process: both end in a 401 with no body.
+                logger.debug("no bearer access token present for %s", path)
             await self.app(scope, receive, send)
         finally:
             REQUEST_ACCESS_TOKEN.reset(token_reset)
             REQUEST_USER_ID.reset(user_reset)
+
+
+def _resolve_user_id(
+    access: object, claims: dict, client_id: str | None
+) -> tuple[str, str]:
+    """Returns (user_id, which_source_supplied_it) for the debug log above."""
+    for source, value in (
+        ("access_token.subject", getattr(access, "subject", None)),
+        ("claims.sub", claims.get("sub")),
+        ("claims.email", claims.get("email")),
+        ("claims.preferred_username", claims.get("preferred_username")),
+        ("access_token.client_id", client_id),
+    ):
+        if value:
+            return str(value), source
+    return "unknown", "none"
 
 
 __all__ = ["AuthContextMiddleware", "close_exchange_client"]

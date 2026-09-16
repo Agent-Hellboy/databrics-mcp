@@ -6,6 +6,7 @@ from databricks.sdk.service.sql import Disposition, Format
 from fastmcp import FastMCP
 from fastmcp.server.auth import require_scopes
 
+from mcp_databricks.auth import SQL_READ_SCOPE
 from mcp_databricks.client import workspace_client
 from mcp_databricks.config import validate_readonly_sql, validate_table_identifier
 from mcp_databricks.policy import read_only_policy
@@ -53,7 +54,7 @@ def sample_table(warehouse_id: str, full_name: str, limit: int = 20) -> dict:
 
 def register(mcp: FastMCP) -> None:
     for tool in (sample_table, run_readonly_sql):
-        mcp.tool(auth=require_scopes("sql:read"))(tool)
+        mcp.tool(auth=require_scopes(SQL_READ_SCOPE))(tool)
 
 
 __all__ = [

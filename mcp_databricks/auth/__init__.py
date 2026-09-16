@@ -23,6 +23,15 @@ DEFAULT_ALLOWED_HOST_SUFFIXES = (
     ".gcp.databricks.com",
 )
 
+# The single source of truth for scope names: tools/catalog.py, tools/sql.py,
+# and tools/warehouses.py gate their tools with these, and this module's own
+# build_auth_provider (and app.py's bare protected-resource-metadata route)
+# advertise the same list. Previously each site had its own copy of the
+# literal string, free to drift independently.
+CATALOG_READ_SCOPE = "catalog:read"
+SQL_READ_SCOPE = "sql:read"
+PROTECTED_RESOURCE_SCOPES = [CATALOG_READ_SCOPE, SQL_READ_SCOPE]
+
 
 def allowed_host_suffixes() -> tuple[str, ...]:
     raw = os.getenv("DATABRICKS_ALLOWED_HOST_SUFFIXES")
@@ -134,7 +143,7 @@ def build_auth_provider():
         resource_url=public_base_url(),
         issuer=auth_issuer(),
         jwks_uri=auth_jwks_uri(),
-        scopes_supported=["catalog:read", "sql:read"],
+        scopes_supported=PROTECTED_RESOURCE_SCOPES,
         ssrf_safe=auth_jwks_ssrf_safe(),
     )
 
@@ -150,7 +159,10 @@ def build_token_exchange_client():
 
 
 __all__ = [
+    "CATALOG_READ_SCOPE",
+    "PROTECTED_RESOURCE_SCOPES",
     "SERVER_WEBSITE",
+    "SQL_READ_SCOPE",
     "TokenExchangeError",
     "allowed_host_suffixes",
     "auth_connector",
