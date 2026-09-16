@@ -71,7 +71,7 @@ async def test_identity_survives_the_contextvar_reset(tmp_path, monkeypatch) -> 
         finally:
             REQUEST_USER_ID.reset(reset)
 
-    await _drive(UsageMetricsMiddleware(inner))
+    await _drive(UsageMetricsMiddleware(inner, path="/mcp"))
     assert _row_user_id(db) == USER
 
 
@@ -90,7 +90,7 @@ async def test_header_fallback_still_attributes_during_rollout(
         await send({"type": "http.response.body", "body": b"{}"})
 
     await _drive(
-        UsageMetricsMiddleware(inner),
+        UsageMetricsMiddleware(inner, path="/mcp"),
         headers=[(b"x-databricks-user", b"legacy@example.com")],
     )
     assert _row_user_id(db) == "legacy@example.com"
@@ -108,5 +108,5 @@ async def test_unauthenticated_call_records_unknown(tmp_path, monkeypatch) -> No
         await send({"type": "http.response.start", "status": 401, "headers": []})
         await send({"type": "http.response.body", "body": b""})
 
-    await _drive(UsageMetricsMiddleware(inner))
+    await _drive(UsageMetricsMiddleware(inner, path="/mcp"))
     assert _row_user_id(db) == "unknown"

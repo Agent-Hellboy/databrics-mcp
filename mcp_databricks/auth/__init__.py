@@ -16,6 +16,7 @@ from mcp_auth_client import (
 from mcp_databricks.auth.consent_config import server_website
 
 DEFAULT_CONNECTOR = "databricks"
+DEFAULT_MCP_PATH = "/mcp"
 DEFAULT_EXCHANGE_CLIENT = "databricks-mcp"
 DEFAULT_ALLOWED_HOST_SUFFIXES = (
     ".cloud.databricks.com",
@@ -74,6 +75,28 @@ def auth_issuer() -> str:
     if not issuer:
         raise ValueError("MCP_AUTH_ISSUER is required")
     return issuer.rstrip("/")
+
+
+def mcp_path() -> str:
+    """Where this server mounts its MCP endpoint, relative to the base URL.
+
+    One resolved value feeds four places that must agree: the mount point
+    itself, the token audience, the "resource" field of the protected-resource
+    metadata, and the path the usage-metrics middleware matches on. They were
+    four separate "/mcp" literals, so a deployment behind a different mount
+    point had to change each one and would otherwise fail in a way that looks
+    like an auth bug (every token rejected on audience) rather than a routing
+    one.
+    """
+    raw = os.getenv("MCP_PATH", "").strip() or DEFAULT_MCP_PATH
+    normalized = "/" + raw.strip("/")
+    if normalized == "/":
+        raise ValueError(
+            "MCP_PATH must name a path below the base URL (e.g. /mcp); "
+            "mounting at the root leaves the audience indistinguishable "
+            "from the base URL the authorization server issues tokens for"
+        )
+    return normalized
 
 
 def auth_jwks_uri() -> str:
@@ -145,6 +168,7 @@ def build_auth_provider():
         jwks_uri=auth_jwks_uri(),
         scopes_supported=PROTECTED_RESOURCE_SCOPES,
         ssrf_safe=auth_jwks_ssrf_safe(),
+        mcp_path=mcp_path(),
     )
 
 
@@ -174,6 +198,7 @@ __all__ = [
     "auth_token_endpoint",
     "build_auth_provider",
     "build_token_exchange_client",
+    "mcp_path",
     "server_website",
     "workspace_host",
 ]

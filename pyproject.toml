@@ -8,7 +8,7 @@ dependencies = [
     "fastmcp>=3.4.4,<4",
     "mcp>=1.27,<2",
     "pyjwt>=2.8,<3",
-    "mcp-auth-client @ git+https://github.com/Agent-Hellboy/mcp-auth.git@3182a4cfd4b6f4bb2f032ce485a4410602f2617f#subdirectory=auth-client/python",
+    "mcp-auth-client @ git+https://github.com/Agent-Hellboy/mcp-auth.git@59566c5a9c431245c429cce25a7434f05feb1a66#subdirectory=auth-client/python",
     "uvicorn>=0.30,<1",
     "sqlglot>=25,<30",
 ]

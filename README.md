@@ -49,6 +49,7 @@ deployment-specific values:
 | `MCP_ALLOWED_HOSTS` | Allowed `Host` header values, comma-separated. Must match the incoming `Host` header exactly, including the port whenever the service is reached on a non-standard one (`mcp.example.com:6328` for a direct port, vs. the bare `mcp.example.com` a standard-port HTTPS reverse proxy sends). The default only covers `MCP_PORT`; remapping the published port without updating this is the classic way to turn a healthy deployment into a 421. |
 | `MCP_SERVER_WEBSITE` | Required. Shown to users in client UI when authorizing. Startup fails on an `example.com` placeholder, since it would point users at a domain you don't control. |
 | `MCP_SERVER_DISPLAY_NAME` | Server name shown to clients (default `Databricks MCP`) |
+| `MCP_PATH` | Where the MCP endpoint is mounted below `PUBLIC_BASE_URL` (default `/mcp`). This is also the token audience and the path the protected-resource metadata is published under, so changing it moves all three together; the authorization server must issue tokens for the same `PUBLIC_BASE_URL` + `MCP_PATH`. |
 | `MCP_HOST` / `MCP_PORT` | Listen address (defaults `127.0.0.1` / `6328`; the container image sets `MCP_HOST=0.0.0.0`) |
 | `MCP_LOG_LEVEL` | Level for this service's own loggers and uvicorn's (default `info`; `debug` shows per-request auth decisions) |
 | `MCP_MAX_ROWS` / `MCP_MAX_SAMPLE_ROWS` / `MCP_SQL_WAIT_TIMEOUT` | Query bounds (defaults `200` / `100` / `10s`). `MCP_MAX_SAMPLE_ROWS` is a ceiling on the caller's requested sample size, never a floor. |

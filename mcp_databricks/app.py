@@ -1,4 +1,4 @@
-"""ASGI application: Databricks MCP resource server at /mcp."""
+"""ASGI application: Databricks MCP resource server, mounted at MCP_PATH."""
 
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ from mcp_databricks.auth import (
     PROTECTED_RESOURCE_SCOPES,
     auth_issuer,
     build_auth_provider,
+    mcp_path,
 )
 from mcp_databricks.auth import public_base_url as auth_public_base_url
 from mcp_databricks.auth.consent_config import server_display_name, server_website
@@ -115,11 +116,21 @@ logger.info(
 PROTECTED_RESOURCE_METADATA_PREFIX = "/.well-known/oauth-protected-resource"
 
 
+def mcp_resource_url() -> str:
+    """The resource identifier tokens are issued for: base URL + MCP_PATH.
+
+    This is the single string that has to match the token audience, and the
+    SDK derives that audience from the same two values, so the two cannot
+    drift apart when a deployment moves off /mcp.
+    """
+    return f"{auth_public_base_url()}{mcp_path()}"
+
+
 def protected_resource_metadata_document() -> dict:
     """The one protected-resource metadata document (RFC 9728).
 
     Served from this single function at both the path-scoped location
-    (/.well-known/oauth-protected-resource/mcp, where the WWW-Authenticate
+    (/.well-known/oauth-protected-resource<MCP_PATH>, where the WWW-Authenticate
     challenge sends every client) and the bare one (which some clients probe
     first), replacing the route FastMCP generates.
 
@@ -134,9 +145,8 @@ def protected_resource_metadata_document() -> dict:
     fixable by passing a different string in: the normalization happens on
     the way out, inside a pinned third-party model.
     """
-    resource = auth_public_base_url()
     return {
-        "resource": f"{resource}/mcp",
+        "resource": mcp_resource_url(),
         "authorization_servers": [auth_issuer()],
         "scopes_supported": list(PROTECTED_RESOURCE_SCOPES),
         "bearer_methods_supported": ["header"],
@@ -151,11 +161,12 @@ def protected_resource_metadata_paths() -> tuple[str, ...]:
     https://host/databricks/mcp publishes at
     /.well-known/oauth-protected-resource/databricks/mcp. That path-scoped
     location is the one the WWW-Authenticate challenge names, so it has to be
-    derived from the configured base URL rather than assumed to be "/mcp" —
-    a deployment behind a path prefix uses a different one. The bare path is
-    served too, because some clients probe it before the scoped one.
+    derived from the resource URL rather than assumed to be "/mcp" — a
+    deployment behind a path prefix, or one that sets MCP_PATH, uses a
+    different one. The bare path is served too, because some clients probe it
+    before the scoped one.
     """
-    resource_path = urlparse(f"{auth_public_base_url()}/mcp").path
+    resource_path = urlparse(mcp_resource_url()).path
     scoped = f"{PROTECTED_RESOURCE_METADATA_PREFIX}{resource_path}"
     if scoped == PROTECTED_RESOURCE_METADATA_PREFIX:
         return (scoped,)
@@ -206,8 +217,9 @@ def create_app() -> ASGIApp:
     never break MCP traffic; because of that it runs after AuthContextMiddleware has
     reset its ContextVars, which is why the identity also travels on the ASGI scope.
     """
+    path = mcp_path()
     http = mcp.http_app(
-        path="/mcp",
+        path=path,
         transport="streamable-http",
         host_origin_protection=host_origin_protection(),
         allowed_hosts=allowed_hosts(),
@@ -224,9 +236,9 @@ def create_app() -> ASGIApp:
         for route in routes
         if not getattr(route, "path", "").startswith(PROTECTED_RESOURCE_METADATA_PREFIX)
     ]
-    for path in protected_resource_metadata_paths():
-        http.add_route(path, _protected_resource_metadata, methods=["GET"])
-    return UsageMetricsMiddleware(_CacheWellKnownResponses(http))
+    for metadata_path in protected_resource_metadata_paths():
+        http.add_route(metadata_path, _protected_resource_metadata, methods=["GET"])
+    return UsageMetricsMiddleware(_CacheWellKnownResponses(http), path=path)
 
 
 app = create_app()

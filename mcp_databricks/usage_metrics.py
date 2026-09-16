@@ -23,7 +23,7 @@ logger = logging.getLogger("databricks-mcp.metrics")
 class UsageMetricsMiddleware:
     """Best-effort MCP POST metrics; failures never interrupt traffic."""
 
-    def __init__(self, app: ASGIApp, path: str = "/mcp") -> None:
+    def __init__(self, app: ASGIApp, path: str) -> None:
         self.app = app
         self.path = path
 
@@ -58,9 +58,8 @@ class UsageMetricsMiddleware:
                 scope, b"".join(body), status, int((time.monotonic() - started) * 1000)
             )
 
-    @staticmethod
     def _record(
-        scope: Scope, body: bytes, status: int | None, duration_ms: int
+        self, scope: Scope, body: bytes, status: int | None, duration_ms: int
     ) -> None:
         if os.environ.get("MCP_METRICS_ENABLED", "true").lower() in {
             "0",
@@ -118,7 +117,7 @@ class UsageMetricsMiddleware:
                         tool_name,
                         rpc_method,
                         "POST",
-                        "/mcp",
+                        self.path,
                         status,
                         duration_ms,
                         headers.get(b"mcp-session-id", b"").decode("latin-1") or None,
