@@ -8,7 +8,13 @@ import logging
 from fastmcp.server.dependencies import get_access_token
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from mcp_databricks.auth import TokenExchangeError, build_token_exchange_client
+from mcp_databricks.auth import (
+    PROTECTED_RESOURCE_SCOPES,
+    TokenExchangeError,
+    build_token_exchange_client,
+    protected_resource_metadata_url,
+    unauthorized_headers_for_error,
+)
 from mcp_databricks.config import REQUEST_ACCESS_TOKEN, REQUEST_USER_ID, SCOPE_USER_ID
 
 logger = logging.getLogger("databricks-mcp.middleware")
@@ -34,13 +40,19 @@ async def close_exchange_client() -> None:
 
 async def _send_unauthorized(send: Send, detail: str) -> None:
     body = json.dumps({"error": "invalid_token", "error_description": detail}).encode()
+    challenge = unauthorized_headers_for_error(
+        protected_resource_metadata_url(),
+        frozenset(PROTECTED_RESOURCE_SCOPES),
+        "invalid_token",
+        detail,
+    )["WWW-Authenticate"]
     await send(
         {
             "type": "http.response.start",
             "status": 401,
             "headers": [
                 (b"content-type", b"application/json"),
-                (b"www-authenticate", b'Bearer error="invalid_token"'),
+                (b"www-authenticate", challenge.encode()),
             ],
         }
     )

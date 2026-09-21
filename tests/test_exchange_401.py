@@ -60,3 +60,7 @@ async def test_exchange_failure_is_401(monkeypatch: pytest.MonkeyPatch) -> None:
         )
     assert denied.status_code == 401
     assert denied.json()["error"] == "invalid_token"
+    challenge = denied.headers["www-authenticate"]
+    assert 'resource_metadata="https://mcp.example.com/.well-known/' in challenge
+    assert 'scope="catalog:read sql:read"' in challenge
+    assert 'error="invalid_token"' in challenge

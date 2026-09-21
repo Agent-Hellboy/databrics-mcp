@@ -44,6 +44,7 @@ async def test_protected_resource_metadata_is_served_at_the_service_scoped_path(
     # trailing-slash issuer ship. See the test below for why that matters.
     assert body["authorization_servers"] == ["https://auth.example.com"]
     assert body["bearer_methods_supported"] == ["header"]
+    assert body["scopes_supported"] == ["catalog:read", "sql:read"]
 
 
 @pytest.mark.anyio

@@ -10,7 +10,9 @@ from mcp_auth_client import (
     TokenExchangeError,
     build_exchange_client,
     build_remote_auth,
+    protected_resource_metadata,
     public_base_url,
+    unauthorized_headers_for_error,
 )
 
 from mcp_databricks.auth.consent_config import server_website
@@ -97,6 +99,21 @@ def mcp_path() -> str:
             "from the base URL the authorization server issues tokens for"
         )
     return normalized
+
+
+def mcp_resource_url() -> str:
+    """Return the canonical resource identifier and token audience."""
+    return f"{public_base_url()}{mcp_path()}"
+
+
+def protected_resource_metadata_url() -> str:
+    """Return the RFC 9728 metadata URL for the canonical resource."""
+    resource = urlparse(mcp_resource_url())
+    return resource._replace(
+        path=f"/.well-known/oauth-protected-resource{resource.path}",
+        query="",
+        fragment="",
+    ).geturl()
 
 
 def auth_jwks_uri() -> str:
@@ -199,6 +216,10 @@ __all__ = [
     "build_auth_provider",
     "build_token_exchange_client",
     "mcp_path",
+    "mcp_resource_url",
+    "protected_resource_metadata",
+    "protected_resource_metadata_url",
     "server_website",
+    "unauthorized_headers_for_error",
     "workspace_host",
 ]
