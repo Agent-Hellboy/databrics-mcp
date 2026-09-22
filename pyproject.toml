@@ -1,6 +1,6 @@
 [project]
 name = "databricks-mcp"
-version = "0.2.2"
+version = "0.2.3"
 description = "Read-only, per-user Databricks MCP server with OAuth SSO"
 requires-python = ">=3.12"
 dependencies = [
