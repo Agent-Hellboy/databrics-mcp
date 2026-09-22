@@ -15,6 +15,34 @@ commit the resulting environment file.
 - A secret-managed resource-server private key for optional token exchange.
 - Docker and an HTTPS reverse proxy.
 
+## Which redirect URI goes where
+
+Three URLs get confused with each other during a first deployment, so it is
+worth stating which component owns each. This server owns only the first.
+
+| URL | Owned by | Registered with |
+| --- | --- | --- |
+| `PUBLIC_BASE_URL` + `MCP_PATH` | this server | nobody. It is the token audience, published in the protected-resource metadata. |
+| the authorization server's identity callback | the **authorization server** | your **identity provider** (Databricks, Okta, Entra, PingOne, ...) |
+| the MCP client's own redirect, e.g. `http://127.0.0.1:41234/callback` | the MCP client | the authorization server, at registration |
+
+**This server never has a redirect URI of its own and never appears in one.**
+If a Databricks or Okta app rejects a login with `invalid_redirect_uri`, the
+mismatch is between your identity provider and the *authorization server*, not
+this service, so fix it there.
+
+For mcp-auth the identity callback defaults to `<MCP_AUTH_ISSUER>/identity/callback`,
+and `MCP_AUTH_IDENTITY_CALLBACK_URL` overrides it when the provider's app
+already has a fixed redirect URI you cannot change. With
+`MCP_AUTH_ISSUER=https://mcp.example.com/auth`, register:
+
+```
+https://mcp.example.com/auth/identity/callback
+```
+
+Note this is a different host and path from `PUBLIC_BASE_URL`, which is why
+putting this service's own URL into the identity provider never works.
+
 ## Configure
 
 Copy [`service.env.example`](service.env.example) to a secret-managed location
